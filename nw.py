@@ -2,116 +2,176 @@ import numpy as np
 from utils import BLOSUM62_aminoacids, BLOSUM62_penalties
 
 
-def nw(sequence1, sequence2, gap_penalty=0):
-    seq1_length = len(sequence1)
-    seq2_length = len(sequence2)
+class nw(object):
+    def __init__(self, sequence1, sequence2, gap_penalty=0):
+        self.sequence1 = sequence1
+        self.sequence2 = sequence2
+        self.gap_penalty = gap_penalty
+        self.aligned_sequence_1 = ""
+        self.aligned_sequence_2 = ""
 
-    scoring_matrix = np.zeros((seq2_length + 1, seq1_length + 1))
-    match_matrix = np.zeros((seq2_length, seq1_length))
-    direction_matrix = [["" for _ in range(seq1_length + 1)] for _ in range(seq2_length + 1)]
+        self.seq1_length = len(self.sequence1)
+        self.seq2_length = len(self.sequence2)
 
-    # Initialize the scoring matrix using the gap penalty
-    for i in range(seq2_length + 1):
-        scoring_matrix[i][0] = i * gap_penalty
-    for j in range(seq1_length + 1):
-        scoring_matrix[0][j] = j * gap_penalty
+        self.scoring_matrix = np.zeros((self.seq2_length + 1, self.seq1_length + 1))
+        self.match_matrix = np.zeros((self.seq2_length, self.seq1_length))
+        self.direction_matrix = [
+            ["" for _ in range(self.seq1_length + 1)] for _ in range(self.seq2_length + 1)
+        ]
+        self.complete_matrix = [
+            ["" for _ in range(self.seq1_length + 1)] for _ in range(self.seq2_length + 1)
+        ]
 
-    # Fills the matrix that helps checking for matches later on using the BLOSUM62 matrix
-    for i in range(seq2_length):
-        for j in range(seq1_length):
-            # Match
-            if sequence2[i] == sequence1[j]:
-                aminoacid_position = BLOSUM62_aminoacids.index(sequence2[i])
-                match_matrix[i][j] = BLOSUM62_penalties[aminoacid_position][aminoacid_position]
-            # Mismatch
-            else:
-                aminoacid_1 = BLOSUM62_aminoacids.index(sequence2[i])
-                aminoacid_2 = BLOSUM62_aminoacids.index(sequence1[j])
-                match_matrix[i][j] = BLOSUM62_penalties[aminoacid_1][aminoacid_2]
+        self.initializeScoringMatrix()
+        self.fillMatchMatrix()
+        self.fillScoringMatrix()
+        self.fillDirectionMatrix()
+        # self.traceback()
+        self.createCompleteMatrix()
+        self.newTraceback()
 
-    # Fills the scoring matrix
-    for i in range(1, seq2_length + 1):
-        for j in range(1, seq1_length + 1):
-            score = (
-                scoring_matrix[i - 1][j - 1] + match_matrix[i - 1][j - 1],
-                scoring_matrix[i - 1][j] + gap_penalty,
-                scoring_matrix[i][j - 1] + gap_penalty,
-            )
-            scoring_matrix[i][j] = max(score)
+        print(self.aligned_sequence_1)
+        print(self.aligned_sequence_2)
 
-    # Fills the direction matrix
-    for i in range(1, seq2_length + 1):
-        for j in range(1, seq1_length + 1):
+    def initializeScoringMatrix(self):
+        # Initialize the scoring matrix using the gap penalty
+        for i in range(self.seq2_length + 1):
+            self.scoring_matrix[i][0] = i * self.gap_penalty
+        for j in range(self.seq1_length + 1):
+            self.scoring_matrix[0][j] = j * self.gap_penalty
+
+    def fillMatchMatrix(self):
+        # Fills the matrix that helps checking for matches later on using the BLOSUM62 matrix
+        for i in range(self.seq2_length):
+            for j in range(self.seq1_length):
+                # Match
+                if self.sequence2[i] == self.sequence1[j]:
+                    aminoacid_position = BLOSUM62_aminoacids.index(self.sequence2[i])
+                    self.match_matrix[i][j] = BLOSUM62_penalties[aminoacid_position][
+                        aminoacid_position
+                    ]
+                # Mismatch
+                else:
+                    aminoacid_1 = BLOSUM62_aminoacids.index(self.sequence2[i])
+                    aminoacid_2 = BLOSUM62_aminoacids.index(self.sequence1[j])
+                    self.match_matrix[i][j] = BLOSUM62_penalties[aminoacid_1][aminoacid_2]
+
+    def fillScoringMatrix(self):
+        # Fills the scoring matrix
+        for i in range(1, self.seq2_length + 1):
+            for j in range(1, self.seq1_length + 1):
+                score = (
+                    self.scoring_matrix[i - 1][j - 1] + self.match_matrix[i - 1][j - 1],
+                    self.scoring_matrix[i - 1][j] + self.gap_penalty,
+                    self.scoring_matrix[i][j - 1] + self.gap_penalty,
+                )
+                self.scoring_matrix[i][j] = max(score)
+
+    def fillDirectionMatrix(self):
+        # Fills the direction matrix
+        for i in range(1, self.seq2_length + 1):
+            for j in range(1, self.seq1_length + 1):
+                if (
+                    self.sequence2[i - 1]
+                    == self.sequence1[j - 1]
+                    # or self.scoring_matrix[i - 1][j - 1] >= self.scoring_matrix[i - 1][j]
+                    # and self.scoring_matrix[i - 1][j - 1] >= self.scoring_matrix[i][j - 1]
+                ):
+                    self.direction_matrix[i][j] = "\\"
+                elif self.scoring_matrix[i - 1][j] > self.scoring_matrix[i][j - 1]:
+                    self.direction_matrix[i][j] = "|"
+                else:
+                    self.direction_matrix[i][j] = "_"
+
+    def newTraceback(self):
+        i = self.seq2_length
+        j = self.seq1_length
+
+        while i > 0 and j > 0:
+            if self.complete_matrix[i][j][-1] == "\\":
+                # Diagonal
+                i -= 1
+                j -= 1
+                self.aligned_sequence_1 = self.sequence1[j] + self.aligned_sequence_1
+                self.aligned_sequence_2 = self.sequence2[i] + self.aligned_sequence_2
+            elif self.complete_matrix[i][j][-1] == "_":
+                # Horizontal
+                j -= 1
+                self.aligned_sequence_1 = self.sequence1[j] + self.aligned_sequence_1
+                self.aligned_sequence_2 = "-" + self.aligned_sequence_2
+            elif self.complete_matrix[i][j][-1] == "|":
+                # Vertical
+                i -= 1
+                self.aligned_sequence_1 = "-" + self.aligned_sequence_1
+                self.aligned_sequence_2 = self.sequence2[i] + self.aligned_sequence_2
+
+    def traceback(self):
+        # Versão antiga, ignorar esse método
+        # Traceback
+        # TODO: Verificar porque a sequencia está diferente do esperado (visto no PDF do TP)
+
+        seq1_characters_left = self.seq1_length
+        seq2_characters_left = self.seq2_length
+
+        while seq1_characters_left > 0 and seq2_characters_left > 0:
+            # Diagonal
             if (
-                sequence2[i - 1]
-                == sequence1[j - 1]
-                # or scoring_matrix[i - 1][j - 1] >= scoring_matrix[i - 1][j]
-                # and scoring_matrix[i - 1][j - 1] >= scoring_matrix[i][j - 1]
+                self.scoring_matrix[seq2_characters_left][seq1_characters_left]
+                == self.scoring_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
+                + self.match_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
             ):
-                direction_matrix[i][j] = "\\"
-            elif scoring_matrix[i - 1][j] > scoring_matrix[i][j - 1]:
-                direction_matrix[i][j] = "|"
+                self.aligned_sequence_2 = (
+                    self.sequence2[seq2_characters_left - 1] + self.aligned_sequence_2
+                )
+                self.aligned_sequence_1 = (
+                    self.sequence1[seq1_characters_left - 1] + self.aligned_sequence_1
+                )
+
+                seq1_characters_left -= 1
+                seq2_characters_left -= 1
+            # Vertical
+            elif (
+                self.scoring_matrix[seq2_characters_left][seq1_characters_left]
+                == self.scoring_matrix[seq2_characters_left - 1][seq1_characters_left]
+                + self.gap_penalty
+            ):
+                self.aligned_sequence_2 = (
+                    self.sequence2[seq2_characters_left - 1] + self.aligned_sequence_2
+                )
+                self.aligned_sequence_1 = "-" + self.aligned_sequence_1
+
+                seq2_characters_left -= 1
+            # Horizontal
             else:
-                direction_matrix[i][j] = "_"
+                self.aligned_sequence_2 = "-" + self.aligned_sequence_2
+                self.aligned_sequence_1 = (
+                    self.sequence1[seq1_characters_left - 1] + self.aligned_sequence_1
+                )
 
-    # Traceback
-    # TODO: Verificar porque a sequencia está diferente do esperado (visto no PDF do TP)
-    aligned_sequence_1 = ""
-    aligned_sequence_2 = ""
+                seq1_characters_left -= 1
 
-    seq1_characters_left = seq1_length
-    seq2_characters_left = seq2_length
+    def createCompleteMatrix(self):
+        # Creates the matrix with the scores and directions
+        for i in range(len(self.complete_matrix)):
+            for j in range(len(self.complete_matrix[i])):
+                if i == 0 and j == 0:
+                    self.complete_matrix[i][j] = "0"
+                else:
+                    self.complete_matrix[i][j] = (
+                        str(int(self.scoring_matrix[i][j])) + self.direction_matrix[i][j]
+                    )
 
-    while seq1_characters_left > 0 and seq2_characters_left > 0:
-        # Diagonal
-        if (
-            scoring_matrix[seq2_characters_left][seq1_characters_left]
-            == scoring_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
-            + match_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
-        ):
-            aligned_sequence_2 = sequence2[seq2_characters_left - 1] + aligned_sequence_2
-            aligned_sequence_1 = sequence1[seq1_characters_left - 1] + aligned_sequence_1
-
-            seq1_characters_left -= 1
-            seq2_characters_left -= 1
-        # Vertical
-        elif (
-            scoring_matrix[seq2_characters_left][seq1_characters_left]
-            == scoring_matrix[seq2_characters_left - 1][seq1_characters_left] + gap_penalty
-        ):
-            aligned_sequence_2 = sequence2[seq2_characters_left - 1] + aligned_sequence_2
-            aligned_sequence_1 = "-" + aligned_sequence_1
-
-            seq2_characters_left -= 1
-        # Horizontal
-        else:
-            aligned_sequence_2 = "-" + aligned_sequence_2
-            aligned_sequence_1 = sequence1[seq1_characters_left - 1] + aligned_sequence_1
-
-            seq1_characters_left -= 1
-
-    # Creates the matrix with the scores and directions
-    complete_matrix = [["" for _ in range(seq1_length + 1)] for _ in range(seq2_length + 1)]
-    for i in range(len(complete_matrix)):
-        for j in range(len(complete_matrix[i])):
-            if i == 0 and j == 0:
-                complete_matrix[i][j] = "0"
-            else:
-                complete_matrix[i][j] = str(int(scoring_matrix[i][j])) + direction_matrix[i][j]
-
-    sequence1 = "w" + sequence1
-    sequence2 = "v" + sequence2
-    print(" ", end="")
-    for aminoacid in sequence1:
-        print(aminoacid.rjust(4), end="")
-    print()
-    for i in range(len(complete_matrix)):
-        print(sequence2[i], end="")
-        for j in range(len(complete_matrix[i])):
-            print(complete_matrix[i][j].rjust(4), end="")
+        self.sequence1_ = "w" + self.sequence1
+        self.sequence2_ = "v" + self.sequence2
+        print(" ", end="")
+        for aminoacid in self.sequence1_:
+            print(aminoacid.rjust(4), end="")
         print()
+        for i in range(len(self.complete_matrix)):
+            print(self.sequence2_[i], end="")
+            for j in range(len(self.complete_matrix[i])):
+                print(self.complete_matrix[i][j].rjust(4), end="")
+            print()
 
-    print(aligned_sequence_1)
-    print(aligned_sequence_2)
-
-    return scoring_matrix
+        print(self.aligned_sequence_1)
+        print(self.aligned_sequence_2)
