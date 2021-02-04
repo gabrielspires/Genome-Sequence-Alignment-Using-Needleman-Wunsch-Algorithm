@@ -26,9 +26,9 @@ class nw(object):
         self.fillMatchMatrix()
         self.fillScoringMatrix()
         self.fillDirectionMatrix()
-        # self.traceback()
         self.createCompleteMatrix()
-        self.newTraceback()
+        self.Traceback()
+        self.printCompleteMatrix()
 
         print(self.aligned_sequence_1)
         print(self.aligned_sequence_2)
@@ -83,7 +83,7 @@ class nw(object):
                 else:
                     self.direction_matrix[i][j] = "_"
 
-    def newTraceback(self):
+    def Traceback(self):
         i = self.seq2_length
         j = self.seq1_length
 
@@ -105,51 +105,6 @@ class nw(object):
                 self.aligned_sequence_1 = "-" + self.aligned_sequence_1
                 self.aligned_sequence_2 = self.sequence2[i] + self.aligned_sequence_2
 
-    def traceback(self):
-        # Versão antiga, ignorar esse método
-        # Traceback
-        # TODO: Verificar porque a sequencia está diferente do esperado (visto no PDF do TP)
-
-        seq1_characters_left = self.seq1_length
-        seq2_characters_left = self.seq2_length
-
-        while seq1_characters_left > 0 and seq2_characters_left > 0:
-            # Diagonal
-            if (
-                self.scoring_matrix[seq2_characters_left][seq1_characters_left]
-                == self.scoring_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
-                + self.match_matrix[seq2_characters_left - 1][seq1_characters_left - 1]
-            ):
-                self.aligned_sequence_2 = (
-                    self.sequence2[seq2_characters_left - 1] + self.aligned_sequence_2
-                )
-                self.aligned_sequence_1 = (
-                    self.sequence1[seq1_characters_left - 1] + self.aligned_sequence_1
-                )
-
-                seq1_characters_left -= 1
-                seq2_characters_left -= 1
-            # Vertical
-            elif (
-                self.scoring_matrix[seq2_characters_left][seq1_characters_left]
-                == self.scoring_matrix[seq2_characters_left - 1][seq1_characters_left]
-                + self.gap_penalty
-            ):
-                self.aligned_sequence_2 = (
-                    self.sequence2[seq2_characters_left - 1] + self.aligned_sequence_2
-                )
-                self.aligned_sequence_1 = "-" + self.aligned_sequence_1
-
-                seq2_characters_left -= 1
-            # Horizontal
-            else:
-                self.aligned_sequence_2 = "-" + self.aligned_sequence_2
-                self.aligned_sequence_1 = (
-                    self.sequence1[seq1_characters_left - 1] + self.aligned_sequence_1
-                )
-
-                seq1_characters_left -= 1
-
     def createCompleteMatrix(self):
         # Creates the matrix with the scores and directions
         for i in range(len(self.complete_matrix)):
@@ -161,6 +116,7 @@ class nw(object):
                         str(int(self.scoring_matrix[i][j])) + self.direction_matrix[i][j]
                     )
 
+    def printCompleteMatrix(self):
         self.sequence1_ = "w" + self.sequence1
         self.sequence2_ = "v" + self.sequence2
         print(" ", end="")
@@ -172,6 +128,3 @@ class nw(object):
             for j in range(len(self.complete_matrix[i])):
                 print(self.complete_matrix[i][j].rjust(4), end="")
             print()
-
-        print(self.aligned_sequence_1)
-        print(self.aligned_sequence_2)
