@@ -17,7 +17,7 @@ Apenas pares de sequencias poder ser lidos para o alinhamento, arquivos com mais
 
 ### Exemplo de entrada e saída
 
-Usando como exemplo a entrada 3 fornecida juntamente com o trabalho, temos a saída abaixo, que contém a matriz de pontuações e as duas sequências já alinhadas.
+Usando como exemplo a entrada 3, temos a saída abaixo que contém a matriz de pontuações e as duas sequências já alinhadas.
 
 ##### Entrada
 
